@@ -97,6 +97,9 @@ def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
         oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
     sHtmlContent = oRequest.request()
     pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>'
+    # <a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"
+    # <a[^>]*href="(serie\\/[^"]*)"[^>]*title="([^"]*)"
+    # <a[^>]*href="(serie/[^"]*)"[^>]*title="([^"]*)"
     # pattern = '<a[^>]*href="(\\/serie\\/[^"]*)"[^>]*>(.*?)</a>'
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
