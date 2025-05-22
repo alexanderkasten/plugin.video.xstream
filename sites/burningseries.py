@@ -9,7 +9,7 @@
 # showAllSeries: 24 Stunden
 # showEpisodes:   4 Stunden
 # SSsearch:      24 Stunden
-    
+
 # 2022-12-06 Heptamer - Suchfunktion überarbeitet
 
 import xbmcgui
@@ -35,7 +35,7 @@ if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'false':
 DOMAIN = cConfig().getSetting('plugin_' + SITE_IDENTIFIER + '.domain') # Domain Auswahl über die xStream Einstellungen möglich
 STATUS = cConfig().getSetting('plugin_' + SITE_IDENTIFIER + '_status') # Status Code Abfrage der Domain
 ACTIVE = cConfig().getSetting('plugin_' + SITE_IDENTIFIER) # Ob Plugin aktiviert ist oder nicht
-
+URL_LOGIN = ''
 URL_MAIN = 'https://' + DOMAIN
 REFERER = 'https://' + DOMAIN
 URL_SERIES = URL_MAIN + '/andere-serien'
@@ -96,10 +96,15 @@ def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
     sHtmlContent = oRequest.request()
-    pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>'
-    # <a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"
-    # <a[^>]*href="(serie\\/[^"]*)"[^>]*title="([^"]*)"
-    # <a[^>]*href="(serie/[^"]*)"[^>]*title="([^"]*)"
+    # pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>'
+    # works
+    # pattern = '<a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"'
+        # Optimiertes Pattern: weniger Backtracking, keine unnötigen Gruppen, kein .* am Ende
+    # Ursprünglich: pattern = '<a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"'
+    # Optimiert:
+    pattern = r'<a[^>]+href="(serie/[^"]+)"[^>]+title="([^"]+)"'
+    # pattern = <a[^>]*href="(serie\\/[^"]*)"[^>]*title="([^"]*)"
+    # pattern = <a[^>]*href="(serie/[^"]*)"[^>]*title="([^"]*)"
     # pattern = '<a[^>]*href="(\\/serie\\/[^"]*)"[^>]*>(.*?)</a>'
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
