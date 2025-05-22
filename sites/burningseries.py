@@ -206,9 +206,8 @@ def showSeasons():
         cGui().showInfo()
         return
 
-# todo add description and thumbnail
-    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '<p[^>]*data-full-description="(.*?)"[^>]*>')
-    isThumbnail, sThumbnail = cParser.parseSingleResult(sHtmlContent, '<div[^>]*class="seriesCoverBox"[^>]*>.*?data-src="([^"]*)"[^>]*>')
+    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div id="sp_left">.*?<p>(.*?)</p>')
+    isThumbnail, sThumbnail = cParser.parseSingleResult(sHtmlContent, r'<div id="sp_right"[^>]*>.*?<img[^>]*src="([^"]+)"')
     if isThumbnail:
         if sThumbnail.startswith('/'):
             sThumbnail = URL_MAIN + sThumbnail
