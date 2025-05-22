@@ -1055,6 +1055,52 @@
 					<control type="toggle"/>
 				</setting>
 			</group>
+			<group id="plugin_burningseries" label="30730">
+				<setting id="plugin_burningseries" type="boolean" label="30050" help="30411">
+					<level>0</level>
+                    <default>True</default>
+					<control type="toggle"/>
+				</setting>
+				<setting id="global_search_burningseries" type="boolean" label="30052">
+					<level>0</level>
+					<default>True</default>
+					<dependencies>
+						<dependency type="enable" operator="!is" setting="plugin_burningseries">False</dependency>
+					</dependencies>
+					<control type="toggle"/>
+				</setting>
+				<!-- Domain Überprüfung mit automatischer und manueller Anpassung -->
+				<setting id="plugin_burningseries_checkDomain" type="boolean" label="30277">
+					<level>3</level>
+					<default>True</default>
+					<dependencies>
+						<dependency type="enable" operator="!is" setting="plugin_burningseries">false</dependency>
+						<dependency type="visible" operator="!is" setting="plugin_burningseries">false</dependency>
+					</dependencies>
+					<control type="toggle"/>
+				</setting>
+				<setting id="plugin_burningseries.domain" type="string" label="30051">
+					<level>3</level>
+					<default>bs.to</default>
+					<constraints>
+						<options>
+							<option label="bs.to">bs.to</option>
+						</options>
+					<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable" operator="!is" setting="plugin_burningseries">false</dependency>
+						<dependency type="visible" operator="!is" setting="plugin_burningseries">false</dependency>
+						<dependency type="visible" setting="bypassDNSlock">false</dependency>
+					</dependencies>
+					<control type="spinner" format="string"/>
+				</setting>
+				<setting id="plugin_burningseries_status" type="string" label="Dummy" help="">
+					<visible>false</visible>
+					<default>true</default>
+					<control type="toggle"/>
+				</setting>
+			</group>
 			<group id="plugin_streamcloud" label="30725">
 				<setting id="plugin_streamcloud" type="boolean" label="30050" help="30411">
 					<level>0</level>

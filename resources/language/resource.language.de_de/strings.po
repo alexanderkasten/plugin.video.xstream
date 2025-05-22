@@ -1596,6 +1596,10 @@ msgctxt "#30729"
 msgid "2captcha"
 msgstr ""
 
+msgctxt "#30730"
+msgid "BurningSeries"
+msgstr ""
+
 ############### VoD Plugins ###############
 
 msgctxt "#30790"
