@@ -200,15 +200,13 @@ def showSeasons():
     sTVShowTitle = params.getValue('TVShowTitle')
     oRequest = cRequestHandler(sUrl)
     sHtmlContent = oRequest.request()
-    pattern = '<div[^>]*class="hosterSiteDirectNav"[^>]*>.*?<ul>(.*?)<\\/ul>'
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        pattern = '<a[^>]*href="([^"]*)"[^>]*title="([^"]*)"[^>]*>(.*?)</a>.*?'
-        isMatch, aResult = cParser.parse(sContainer, pattern)
+    pattern = r'<li class="s(\d+)(?:\s+active)?"><a href="([^"]+)">([^<]+)</a></li>'
+    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
         cGui().showInfo()
         return
 
+# todo add description and thumbnail
     isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '<p[^>]*data-full-description="(.*?)"[^>]*>')
     isThumbnail, sThumbnail = cParser.parseSingleResult(sHtmlContent, '<div[^>]*class="seriesCoverBox"[^>]*>.*?data-src="([^"]*)"[^>]*>')
     if isThumbnail:
@@ -216,10 +214,8 @@ def showSeasons():
             sThumbnail = URL_MAIN + sThumbnail
 
     total = len(aResult)
-    for sUrl, sName, sNr in aResult:
-        isMovie = sUrl.endswith('filme')
-        if 'Alle Filme' in sName:
-            sName = 'Filme'
+    for sNr, sUrl, sName in aResult:
+        isMovie = sNr.startswith('0')
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showEpisodes')
         oGuiElement.setMediaType('season' if not isMovie else 'movie')
         if isThumbnail:
