@@ -254,6 +254,29 @@
 					</control>
 				</setting>
 			</group>
+			<group id="2captchaacc" label="30729">
+				<setting id="2captcha.user" type="string" label="30083" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control type="edit" format="string">
+						<heading>30083</heading>
+					</control>
+				</setting>
+				<setting id="2captcha.pass" type="string" label="30084" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<control type="edit" format="string">
+						<heading>30084</heading>
+						<hidden>true</hidden>
+					</control>
+				</setting>
+			</group>
 		</category>
 		<!-- Kategorie Indexseiten 1 (30094) und Indexseiten 2 (30095) werden vom PluginHandler gesetzt und sind somit kein fester Bestandteil der settings.xml -->
 		<category id="indexsite1" label="30094">
