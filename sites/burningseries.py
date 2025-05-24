@@ -216,7 +216,8 @@ def showSeasons():
     for sNr, sUrl, sName in aResult:
         isMovie = sNr.startswith('0')
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showEpisodes')
-        oGuiElement.setMediaType('season' if not isMovie else 'movie')
+        oGuiElement.setMediaType('season')
+        # oGuiElement.setMediaType('season' if not isMovie else 'movie')
         if isThumbnail:
             oGuiElement.setThumbnail(sThumbnail)
         if isDesc:
@@ -226,7 +227,7 @@ def showSeasons():
             oGuiElement.setSeason(sNr)
             params.setParam('sSeason', sNr)
         params.setParam('sThumbnail', sThumbnail)
-        params.setParam('sUrl', URL_MAIN + sUrl)
+        params.setParam('sUrl', URL_MAIN + '/' + sUrl)
         cGui().addFolder(oGuiElement, params, True, total)
     cGui().setView('seasons')
     cGui().setEndOfDirectory()
