@@ -289,110 +289,42 @@ def showHosters():
     hosters = []
     sUrl = ParameterHandler().getValue('sUrl')
     sHtmlContent = cRequestHandler(sUrl, caching=False).request()
-    if cConfig().getSetting('plugin_' + SITE_IDENTIFIER + '.domain') == 'burningseries.stream':
-        pattern = '<li[^>]*episodeLink([^"]+)"\sdata-lang-key="([^"]+).*?data-link-target=([^"]+).*?<h4>([^<]+)<([^>]+)'
-        pattern2 = 'itemprop="keywords".content=".*?Season...([^"]+).S.*?'  # HD Kennzeichen
-        # data-lang-key="1" Deutsch
-        # data-lang-key="2" Englisch
-        # data-lang-key="3" Englisch mit deutschen Untertitel
-        isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-        aResult2 = cParser.parse(sHtmlContent, pattern2)  # pattern 2 auslesen
-        if isMatch:
-            for sID, sLang, sUrl, sName, sQuality in aResult:
-                sUrl = sUrl.replace(sUrl, '')
-                sUrl = sUrl.replace('', '/redirect/' + sID)
-                if cConfig().isBlockedHoster(sName)[0]: continue # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
-                sLanguage = cConfig().getSetting('prefLanguage')
-                if sLanguage == '1':        # Voreingestellte Sprache Deutsch in settings.xml
-                    if '2' in sLang:        # data-lang-key="2" English
-                        continue
-                    if '3' in sLang:        # data-lang-key="3" Englisch mit deutschen Untertitel
-                        continue
-                    if sLang == '1':        # data-lang-key="1" Deutsch
-                        sLang = '(DE)'      # Anzeige der Sprache Deutsch
-                if sLanguage == '2':        # Voreingestellte Sprache Englisch in settings.xml
-                    if '1' in sLang:        # data-lang-key="1" Deutsch
-                        continue
-                    if '3' in sLang:        # data-lang-key="3" Englisch mit deutschen Untertitel
-                        continue
-                    if sLang == '2':        # data-lang-key="2" English
-                        sLang = '(EN)'      # Anzeige der Sprache
-                if sLanguage == '3':        # Voreingestellte Sprache Japanisch in settings.xml
-                    cGui().showLanguage()   # Kein Eintrag in der ausgewählten Sprache verfügbar
-                    continue
-                if sLanguage == '0':  # Alle Sprachen
-                    if sLang == '1':  # data-lang-key="1" Deutsch
-                        sLang = '(DE)'  # Anzeige der Sprache Deutsch
-                    if sLang == '2':  # data-lang-key="2" Englisch
-                        sLang = '(EN)'  # Anzeige der Sprache Englisch
-                    elif sLang == '3':  # data-lang-key="3" Englisch mit deutschen Untertitel
-                        sLang = '(EN) Sub: (DE)'  # Anzeige der Sprache Englisch mit deutschen Untertitel
-                if 'HD' in aResult2[1]:  # Prüfen ob tuple aResult2 das Kennzeichen HD enthält, dann übersteuern
-                    sQuality = '720'
-                else:
-                    sQuality = '480'
-                    # Ab hier wird der sName mit abgefragt z.B:
-                    # aus dem Log [burningseries]: ['/redirect/12286260', 'VOE']
-                    # hier ist die sUrl = '/redirect/12286260' und der sName 'VOE'
-                    # hoster.py 194
-                hoster = {'link': [sUrl, sName], 'name': sName, 'displayedName': '%s [I]%s [%sp][/I]' % (sName, sLang, sQuality), 'quality': sQuality, 'languageCode': sLang} # Language Code für hoster.py Sprache Prio
-                hosters.append(hoster)
-            if hosters:
-                hosters.append('getHosterUrl')
-            if not hosters:
-                cGui().showLanguage()
-            return hosters
-    else:
-        pattern = '<li[^>]*data-lang-key="([^"]+).*?data-link-target="([^"]+).*?<h4>([^<]+)<([^>]+)'
-        pattern2 = 'itemprop="keywords".content=".*?Season...([^"]+).S.*?' # HD Kennzeichen
-        # data-lang-key="1" Deutsch
-        # data-lang-key="2" Englisch
-        # data-lang-key="3" Englisch mit deutschen Untertitel
-        isMatch, aResult = cParser.parse(sHtmlContent, pattern)
-        aResult2 = cParser.parse(sHtmlContent, pattern2) # pattern 2 auslesen
-        if isMatch:
-            for sLang, sUrl, sName, sQuality in aResult:
-                if cConfig().isBlockedHoster(sName)[0]: continue # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
-                sLanguage = cConfig().getSetting('prefLanguage')
-                if sLanguage == '1':        # Voreingestellte Sprache Deutsch in settings.xml
-                    if '2' in sLang:        # data-lang-key="2"
-                        continue
-                    if '3' in sLang:        # data-lang-key="3"
-                        continue
-                    if sLang == '1':        # data-lang-key="1"
-                        sLang = '(DE)'      # Anzeige der Sprache
-                if sLanguage == '2':        # Voreingestellte Sprache Englisch in settings.xml
-                    if '1' in sLang:        # data-lang-key="1"
-                        continue
-                    if '3' in sLang:        # data-lang-key="3"
-                        continue
-                    if sLang == '2':        # data-lang-key="2"
-                        sLang = '(EN)'      # Anzeige der Sprache
-                if sLanguage == '3':        # Voreingestellte Sprache Japanisch in settings.xml
-                    cGui().showLanguage()   # Kein Eintrag in der ausgewählten Sprache verfügbar
-                    continue
-                if sLanguage == '0':        # Alle Sprachen
-                    if sLang == '1':        # data-lang-key="1"
-                        sLang = '(DE)'      # Anzeige der Sprache
-                    if sLang == '2':        # data-lang-key="2"
-                        sLang = '(EN)'      # Anzeige der Sprache
-                    elif sLang == '3':      # data-lang-key="3"
-                        sLang = '(EN) Sub: (DE)' # Anzeige der Sprache
-                if 'HD' in aResult2[1]:     # Prüfen ob tuple aResult2 das Kennzeichen HD enthält, dann übersteuern
-                    sQuality = '720'
-                else:
-                    sQuality = '480'
-                    # Ab hier wird der sName mit abgefragt z.B:
-                    # aus dem Log [burningseries]: ['/redirect/12286260', 'VOE']
-                    # hier ist die sUrl = '/redirect/12286260' und der sName 'VOE'
-                    # hoster.py 194
-                hoster = {'link': [sUrl, sName], 'name': sName, 'displayedName': '%s [I]%s [%sp][/I]' % (sName, sLang, sQuality), 'quality': sQuality, 'languageCode': sLang} # Language Code für hoster.py Sprache Prio
-                hosters.append(hoster)
-            if hosters:
-                hosters.append('getHosterUrl')
-            if not hosters:
-                cGui().showLanguage()
-            return hosters
+
+    hosterTabspattern = r'<ul class="hoster-tabs[^"]*"[^>]*>(.*?)</ul>'
+    hosterPattern = r'<a[^>]*href="([^"]+)"[^>]*>(?:.*?<i[^>]*></i>)?([^<]+)</a>';
+    languagesPattern = 'itemprop="keywords".content=".*?Season...([^"]+).S.*?' # HD Kennzeichen
+
+    # TODO: Sprachauswahl
+
+    # data-lang-key="1" Deutsch
+    # data-lang-key="2" Englisch
+    # data-lang-key="3" Englisch mit deutschen Untertitel
+
+    isMatchHosterTabs, rHosterTabs = cParser.parseSingleResult(sHtmlContent, hosterTabspattern)
+    if not isMatchHosterTabs:
+        cGui().showInfo()
+        return
+    # isMatchLang, aResult2 = cParser.parseSingleResult(sHtmlContent, languagesPattern)
+    isMatch, aResult = cParser.parse(rHosterTabs, hosterPattern)
+    sLang = '(DE)'
+    sQuality = '480'
+    if isMatch:
+        for sUrl, sName in aResult:
+            if cConfig().isBlockedHoster(sName)[0]: continue # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
+            # sLanguage = cConfig().getSetting('prefLanguage')
+            sName = sName.strip()
+
+                # Ab hier wird der sName mit abgefragt z.B:
+                # aus dem Log [burningseries]: ['/redirect/12286260', 'VOE']
+                # hier ist die sUrl = '/redirect/12286260' und der sName 'VOE'
+                # hoster.py 194
+            hoster = {'link': [sUrl, sName], 'name': sName, 'displayedName': '%s [I]%s [%sp][/I]' % (sName, sLang, sQuality), 'quality': sQuality, 'languageCode': sLang} # Language Code für hoster.py Sprache Prio
+            hosters.append(hoster)
+        if hosters:
+            hosters.append('getHosterUrl')
+        if not hosters:
+            cGui().showLanguage()
+        return hosters
 
 
 def getHosterUrl(hUrl):
