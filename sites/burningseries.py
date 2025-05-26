@@ -14,6 +14,9 @@
 
 import xbmcgui
 import xbmcaddon
+import json
+import requests
+import time
 
 from resources.lib.handler.ParameterHandler import ParameterHandler
 from resources.lib.handler.requestHandler import cRequestHandler
@@ -217,6 +220,7 @@ def showSeasons():
         isMovie = sNr.startswith('0')
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showEpisodes')
         oGuiElement.setMediaType('season')
+        logger.info('BurningSeries: showSeasons: sNr: %s, sUrl: %s, sName: %s' % (sNr, sUrl, sName))
         # oGuiElement.setMediaType('season' if not isMovie else 'movie')
         if isThumbnail:
             oGuiElement.setThumbnail(sThumbnail)
@@ -239,50 +243,45 @@ def showEpisodes():
     sTVShowTitle = params.getValue('TVShowTitle')
     sSeason = params.getValue('sSeason')
     sThumbnail = params.getValue('sThumbnail')
+
+    logger.info('BurningSeries: showEpisodes: sUrl: %s, sTVShowTitle: %s, sSeason: %s, sThumbnail: %s' % (sUrl, sTVShowTitle, sSeason, sThumbnail))
     if not sSeason:
-        sSeason = '0'
+        sSeason = '1'
     isMovieList = sUrl.endswith('filme')
     oRequest = cRequestHandler(sUrl)
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 4  # HTML Cache Zeit 4 Stunden
     sHtmlContent = oRequest.request()
-    pattern = '<table[^>]*class="seasonEpisodesList"[^>]*>(.*?)</table>'
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, pattern)
-    if isMatch:
-        if isMovieList == True:
-            pattern = '<tr[^>]*data-episode-season-id="(\d+).*?<a href="([^"]+)">\s([^<]+).*?<strong>([^<]+)'
-            isMatch, aResult = cParser.parse(sContainer, pattern)
-            if not isMatch:
-                pattern = '<tr[^>]*data-episode-season-id="(\d+).*?<a href="([^"]+)">\s([^<]+).*?<span>([^<]+)'
-                isMatch, aResult = cParser.parse(sContainer, pattern)
-        else:
-            pattern = '<tr[^>]*data-episode-season-id="(\d+).*?<a href="([^"]+).*?(?:<strong>(.*?)</strong>.*?)?(?:<span>(.*?)</span>.*?)?<'
-            isMatch, aResult = cParser.parse(sContainer, pattern)
+    pattern = r'<tr[^>]*>\s*<td><a href="([^"]+)" title="([^"]+)">(\d+)</a></td>\s*<td>.*?<a href="([^"]+)" title="([^"]+)">.*?</td>\s*<td>(.*?)</td>\s*</tr>'
+    isMatch, sEpisodes = cParser.parse(sHtmlContent, pattern)
+
+    logger.info('BurningSeries: showEpisodes: isMatch: %s, sEpisodes: %s' % (isMatch, sEpisodes))
+    # if isMatch:
+    #     pattern = '<tr[^>]*data-episode-season-id="(\d+).*?<a href="([^"]+).*?(?:<strong>(.*?)</strong>.*?)?(?:<span>(.*?)</span>.*?)?<'
+    #     isMatch, aResult = cParser.parse(sContainer, pattern)
     if not isMatch:
+        logger.error('BurningSeries: showEpisodes: No episodes found for URL: %s' % sUrl)
         cGui().showInfo()
         return
 
-    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, '<p[^>]*data-full-description="(.*?)"[^>]*>')
-    total = len(aResult)
-    for sID, sUrl2, sNameGer, sNameEng in aResult:
-        sName = '%d - ' % int(sID)
-        if isMovieList == True:
-            sName += sNameGer + '- ' + sNameEng
-        else:
-            sName += sNameGer if sNameGer else sNameEng
+    isDesc, sDesc = cParser.parseSingleResult(sHtmlContent, r'<div id="sp_left">.*?<p>(.*?)</p>')
+    total = len(sEpisodes)
+    for eLink, eTitle, sNumber, eLink2, eTitle2, eHosterContent in sEpisodes:
+        sName = eTitle
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showHosters')
-        oGuiElement.setMediaType('episode' if not isMovieList else 'movie')
+        oGuiElement.setMediaType('episode')
         oGuiElement.setThumbnail(sThumbnail)
         if isDesc:
             oGuiElement.setDescription(sDesc)
         if not isMovieList:
             oGuiElement.setSeason(sSeason)
-            oGuiElement.setEpisode(int(sID))
+            oGuiElement.setEpisode(int(sNumber))
             oGuiElement.setTVShowTitle(sTVShowTitle)
-        params.setParam('sUrl', URL_MAIN + sUrl2)
+        params.setParam('sUrl', URL_MAIN + '/' + eLink2)
         params.setParam('entryUrl', sUrl)
+        params.setParam('eHosterContent', eHosterContent)
         cGui().addFolder(oGuiElement, params, False, total)
-    cGui().setView('episodes' if not isMovieList else 'movies')
+    cGui().setView('episodes')
     cGui().setEndOfDirectory()
 
 
