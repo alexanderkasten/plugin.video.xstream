@@ -326,30 +326,153 @@ def showHosters():
             cGui().showLanguage()
         return hosters
 
+def get_twoCaptcha_answer_sync(captcha_id: str):
+    password = cConfig().getSetting('2captcha.pass')
+    twoCaptchaApiRes = 'https://2captcha.com/res.php'
+    while True:
+        logger.info(f'captcha id: {captcha_id}')
+
+        url = f"{twoCaptchaApiRes}?key={password}&json=1&action=get&id={captcha_id}"
+
+        try:
+            response = requests.get(url, headers={'Content-Type': 'application/json'})
+            json_res = response.json()
+            logger.info(f'captcha res: {json_res}')
+
+            if json_res.get('status') == 1:
+                return json_res.get('request')
+            elif json_res.get('request') != 'CAPCHA_NOT_READY':
+                error_msg = f"Error while solving captcha: {json.dumps(json_res, indent=2)} \nid: {captcha_id}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
+
+            time.sleep(5)
+
+        except requests.RequestException as e:
+            error_msg = f"HTTP error while polling captcha: {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg)
 
 def getHosterUrl(hUrl):
     if type(hUrl) == str: hUrl = eval(hUrl)
-    username = cConfig().getSetting('burningseries.user')
-    password = cConfig().getSetting('burningseries.pass')
-    Handler = cRequestHandler(URL_LOGIN, caching=False)
-    Handler.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    Handler.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
-    Handler.addParameters('email', username)
-    Handler.addParameters('password', password)
-    Handler.request()
-    Request = cRequestHandler(URL_MAIN + hUrl[0], caching=False)
+    username = cConfig().getSetting('2captcha.user')
+    password = cConfig().getSetting('2captcha.pass')
+    twoCaptchaApiIn = 'https://2captcha.com/in.php'
+    twoCaptchaApiRes = 'https://2captcha.com/res.php'
+    logger.info('BurningSeries: getHosterUrl: hUrl: %s' % hUrl)
+    logger.info('BurningSeries: getHosterUrl: username: %s, password: %s' % (username, password))
+    # Handler = cRequestHandler(URL_LOGIN, caching=False)
+    # Handler.addHeaderEntry('Upgrade-Insecure-Requests', '1')
+    # Handler.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
+    # Handler.addParameters('email', username)
+    # Handler.addParameters('password', password)
+    # Handler.request()
+    Request = cRequestHandler(URL_MAIN + '/' + hUrl[0], caching=False)
     Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
     Request.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    Request.request()
+    htmlContent = Request.request()
+    logger.info('BurningSeries: getHosterUrl: HTML content received. %s' % (htmlContent))
+    # not working
+    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']*)'\s*$$"
+    sitekey_regex = r"series\.init\s*\(\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*\)\s*;"
+    # not working
+    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*$$"
+    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+?)'\s*$$"
+    # r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*$$"
+    # sitekey_regex = r"series.init\s\(\d*,\s\d*,\s'(.*)'\)"
+    isMatch, sitekey = cParser.parseSingleResult(htmlContent, sitekey_regex)
+    if not isMatch:
+        logger.error('BurningSeries: getHosterUrl: No sitekey found in HTML content.')
+        # return None?
+        return [{'streamUrl': '', 'resolved': False}]
+    logger.info('BurningSeries: getHosterUrl: sitekey: %s' % sitekey)
     sUrl = Request.getRealUrl()
 
-    if 'voe' in hUrl[1].lower():
-        isBlocked, sDomain = cConfig().isBlockedHoster(sUrl)  # Die funktion gibt 2 werte zurück!
-        if isBlocked:  # Voe Pseudo sDomain nicht bekannt in resolveUrl
-            sUrl = sUrl.replace(sDomain, 'voe.sx')
-            return [{'streamUrl': sUrl, 'resolved': False}]
+    params = {
+        'key': password,
+        'method': 'userrecaptcha',
+        'googlekey': sitekey,
+        'pageurl': sUrl,
+        'json': 1,
+        'soft_id': '2496',
+    }
 
-    return [{'streamUrl': sUrl, 'resolved': False}]
+    logger.info('BurningSeries: getHosterUrl: sUrl: %s' % sUrl)
+
+    # Captcha-Request senden
+    response = requests.post(
+        twoCaptchaApiIn,
+        data=json.dumps(params),
+        headers={'Content-Type': 'application/json'}
+    )
+    json_response = response.json()
+
+    if 'request' not in json_response:
+        raise Exception(f"Invalid response from captcha service: {json_response}")
+
+    captcha_id = json_response['request']
+    logger.info(f'Captcha request submitted with ID: {captcha_id}')
+
+    # Warten auf die Lösung
+    google_captcha_token = get_twoCaptcha_answer_sync(captcha_id)
+    lIDMatch, lID = cParser.parseSingleResult(htmlContent, r'data-lid="([^"]+)"')
+    securityTokenMatch, securityToken = cParser.parseSingleResult(htmlContent, r'security_token" content="([^"]+)"')
+    logger.info('BurningSeries: getHosterUrl: lID: %s' % lID)
+    logger.info('BurningSeries: getHosterUrl: google_captcha_token: %s' % google_captcha_token)
+    logger.info('BurningSeries: getHosterUrl: securityToken: %s' % securityToken)
+    if not lIDMatch:
+        logger.error('BurningSeries: getHosterUrl: No lID found in HTML content.')
+        # return None?
+        return [{'streamUrl': '', 'resolved': False}]
+
+    # const bsToApiResponse = await $.ajax({
+    #   url: 'ajax/embed.php',
+    #   type: 'POST',
+    #   dataType: 'JSON',
+    #   data: { LID: videoId, ticket: gTicket },
+    # });
+
+    ResolveRequest = cRequestHandler(URL_MAIN + '/ajax/embed.php', caching=False, ignoreErrors=False, compression=True, jspost=True)
+    ResolveRequest.addParameters('LID', lID)
+    ResolveRequest.addParameters('ticket', google_captcha_token)
+    ResolveRequest.addParameters('token', securityToken)
+    ResolveRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
+    ResolveRequest.addHeaderEntry('Referer', sUrl)
+    ResolveRequest.addHeaderEntry('Origin', URL_MAIN)
+    ResolveRequest.addHeaderEntry('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
+    ResolveRequest.addHeaderEntry('Upgrade-Insecure-Requests', '1')
+    ResolveRequest.addHeaderEntry('Accept', 'application/json, text/javascript, */*; q=0.01')
+    ResolveRequest.addHeaderEntry('Accept-Encoding', 'gzip, deflate, br, zstd')
+    ResolveRequest.addHeaderEntry('Accept-Language', 'de-DE,de;q=0.9')
+    responseHeader = Request.getResponseHeader()
+    ResolveRequest.addHeaderEntry('Cookie', responseHeader.get('Set-Cookie'))
+
+# curl 'https://bs.to/ajax/embed.php' \
+#   -H 'accept: application/json, text/javascript, */*; q=0.01' \
+#   -H 'accept-language: de-DE,de;q=0.9' \
+#   -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
+#   -b '__ddg1_=EQeRRynEzoaICn3Kn7Hz; __bsduid=57vfnml8m8ahtld3dplmcqcicq; seriesorder=genre; __ddg8_=NXDoxfD5eDFEjVKN; __ddg10_=1748104735; __ddg9_=193.32.248.174' \
+#   -H 'origin: https://bs.to' \
+#   -H 'priority: u=1, i' \
+#   -H 'referer: https://bs.to/serie/Bandidos-2024/1/2-Der-heilige-Ort/de/VOE' \
+#   -H 'sec-ch-ua: "Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"' \
+#   -H 'sec-ch-ua-mobile: ?0' \
+#   -H 'sec-ch-ua-platform: "macOS"' \
+#   -H 'sec-fetch-dest: empty' \
+#   -H 'sec-fetch-mode: cors' \
+#   -H 'sec-fetch-site: same-origin' \
+#   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36' \
+#   -H 'x-requested-with: XMLHttpRequest' \
+#   --data-raw 'token=f7faebfe9abaab22308938a0&LID=8232435&ticket=03AFcWeA73wH2zKXObM5Rp6cQpbFTgujoTsUsFRFjf8-hdi0VEBt2AVe6z8JKcdUSIpTXgaUAJxs281qxno_pWID9BoViy-mNvNdMjM_D92pGNsixtAD_bxjMpZi0IfqRYeDQK9e1QUQIDBVTr6bV5zFZZryefXGsTX4KK0QFDn-iNDTSHkCOzi4CPwS2lVfQQRKymF1Rt5cZqnPTfEJqTUBx8XZyGiO3H1fbz0ARfQfD68nfBxqZ3GU-kI-SXL6FRqWt0I34EbzjU4O8DXnnTVEgjBjdZ5fvnQZYkowbjP69khyeANP8Lfx8zC62Bsh9CdpoOIhU3eZ7YMUUTf4Z7_L1X8abAvcwpx25b9SkAI4fv3wR9vWrP_-9vF0Wp2m8pD-17ibVkBAhnOX6qfPAlw4JxV8gnjVGMu-bf_gKxck6uPb2SsNF158C3IZZ-zBu5Qxyam4PXyFi8yZSUqyrncoZRLvPz-myYbtXXEmXQ-9mpqNitcHt77ZXWAnkECvvQTUx0DhS4xrr7d2P9sf_VLmn6IEiCKXJ8iRDvK1-3WE9QKZjh5kzJLk6Cme11TqtInL6bIg9PhWR90uPe0TwJdbK7cLMInDS6j6SK5rWuvYkWtAefCRGDBu0XskFzNuBoLE1Nmmur_MTo2GjkHxSjZogxrP2ruZ4rlOK3qgI1c_9cYFYhfYu6pcMd7-NzwZZAo_7wP3dpuyca0uHoDdfLBiCr66_9HQm2WyZENbjyyt_-Zkxd7ONClUS5y3vzoZzJ_op60e7HMiVdXBR_Fj7JvsEZT96zQextxT_lx9jfSU_Lv2ajeCb9qT8xfuK_BN1QPwRArPONb0yUeJRXdEYdhEyv3qvNUOQ6cFxSBcNiIk7UooMV42N9_d__cgy_CSQrxEtbfpgYyeItiQ8xx8sPRNJYh8PlFVGrs3AuRa17Bqqw_Lhyjl3UP6o8zEKW0YkbDXNh8p64aLBIYT-6t3StT3m0y8UZu1704rWHYyLweD1hAorydPtaNWsoF2pzPbMlRj1PDaZsMJlj9FaYI5cXJAmqAijR2zYAeg'
+    result = ResolveRequest.request()
+    parsedJson = json.loads(result)  # JSON-Response parsen
+    if not parsedJson:
+        logger.error('BurningSeries: getHosterUrl: No result from resolve request.')
+        # return None?
+        return [{'streamUrl': '', 'resolved': False}]
+
+    logger.info('BurningSeries: getHosterUrl: Resolve result: %s' % result)
+    return [{'streamUrl': parsedJson['link'], 'resolved': False}]
 
 
 def showSearch():
