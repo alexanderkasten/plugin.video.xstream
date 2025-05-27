@@ -126,7 +126,7 @@ def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
     if not sGui:
         oGui.setView('tvshows')
         oGui.setEndOfDirectory()
-   
+
 
 
 def showNewEpisodes(entryUrl=False, sGui=False):
@@ -136,19 +136,27 @@ def showNewEpisodes(entryUrl=False, sGui=False):
         entryUrl = params.getValue('sUrl')
     oRequest = cRequestHandler(entryUrl, ignoreErrors=(sGui is not False))
     sHtmlContent = oRequest.request()
-    pattern = '<div[^>]*class="col-md-[^"]*"[^>]*>\s*<a[^>]*href="([^"]*)"[^>]*>\s*<strong>([^<]+)</strong>\s*<span[^>]*>([^<]+)</span>'
-    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+    sectionPattern = r'<section[^>]*id="newest_episodes"[^>]*>.*?<ul[^>]*>(.*?)</ul>.*?</section>'
+    isMatch, aResult = cParser.parseSingleResult(sHtmlContent, sectionPattern)
+
+    logger.info('BurningSeries: showNewEpisodes: isMatch: %s, aResult: %s' % (isMatch, aResult))
     if not isMatch:
         if not sGui: oGui.showInfo()
         return
 
-    total = len(aResult)
-    for sUrl, sName, sInfo in aResult:
-        sMovieTitle = sName + ' ' + sInfo
+    isEpisodesMatch, aEpisodes = cParser.parse(aResult, r'<li[^>]*>\s*<a href="([^"]+)"[^>]*class="title"[^>]*>([^<]+)</a>\s*<div class="info">([^<]+)<i[^>]*title="([^"]+)"[^>]*></i></div>\s*</li>')
+
+    logger.info('BurningSeries: showNewEpisodes: isEpisodesMatch: %s, aEpisodes: %s' % (isEpisodesMatch, aEpisodes))
+    if not isEpisodesMatch:
+        if not sGui: oGui.showInfo()
+        return
+    total = len(aEpisodes)
+    for sUrl, sName, sInfo, sLang in aEpisodes:
+        sMovieTitle = sName + ' ' + sInfo + ' (' + sLang + ')'
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showSeasons')
         oGuiElement.setMediaType('tvshow')
         oGuiElement.setTitle(sMovieTitle)
-        params.setParam('sUrl', URL_MAIN + sUrl)
+        params.setParam('sUrl', URL_MAIN + '/' + sUrl)
         params.setParam('TVShowTitle', sMovieTitle)
 
         oGui.addFolder(oGuiElement, params, True, total)
