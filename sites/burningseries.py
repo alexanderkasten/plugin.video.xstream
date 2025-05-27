@@ -55,7 +55,7 @@ def load(): # Menu structure of the site plugin
     params.setParam('sUrl', URL_SERIES)
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30518), SITE_IDENTIFIER, 'showAllSeries'), params)# All Series
     params.setParam('sUrl', URL_NEW_SERIES)
-    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30514), SITE_IDENTIFIER, 'showEntries'), params)  # New Series
+    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30514), SITE_IDENTIFIER, 'showNewSeries'), params)  # New Series
     params.setParam('sUrl', URL_NEW_EPISODES)
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30516), SITE_IDENTIFIER, 'showNewEpisodes'), params)  # New Episodes
     params.setParam('sUrl', URL_POPULAR)
@@ -157,7 +157,7 @@ def showNewEpisodes(entryUrl=False, sGui=False):
         oGui.setEndOfDirectory()
 
 
-def showEntries(entryUrl=False, sGui=False):
+def showNewSeries(entryUrl=False, sGui=False):
     oGui = sGui if sGui else cGui()
     params = ParameterHandler()
     if not entryUrl:
@@ -166,33 +166,31 @@ def showEntries(entryUrl=False, sGui=False):
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 6  # 6 Stunden
     sHtmlContent = oRequest.request()
-    #Aufbau pattern
-    #'<div[^>]*class="col-md-[^"]*"[^>]*>.*?'  # start element
-    #'<a[^>]*href="([^"]*)"[^>]*>.*?'  # url
-    #'data-src="([^"]*).*?'  # thumbnail
-    #'<h3>(.*?)<span[^>]*class="paragraph-end">.*?'  # title
-    #'<\\/div>'  # end element
-    pattern = '<div[^>]*class="col-md-[^"]*"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>.*?data-src="([^"]*).*?<h3>(.*?)<span[^>]*class="paragraph-end">.*?</div>'
-    isMatch, aResult = cParser.parse(sHtmlContent, pattern)
+
+    pattern = r'<section[^>]*id="newest_series"[^>]*>.*?<ul[^>]*>(.*?)</ul>.*?</section>'
+    isMatch, aResult = cParser.parseSingleResult(sHtmlContent, pattern)
+
+    logger.info('BurningSeries: showNewSeries: isMatch: %s, aResult: %s' % (isMatch, aResult))
     if not isMatch:
         if not sGui: oGui.showInfo()
         return
 
-    total = len(aResult)
-    for sUrl, sThumbnail, sName in aResult:
-        #sThumbnail = URL_MAIN + sThumbnail
+    series_pattern = r'<li><a href="([^"]+)">([^<]+)</a></li>'
+    isSeriesMatch, aSeriesResult = cParser.parse(aResult, series_pattern)
+
+    logger.info('BurningSeries: showNewSeries: isSeriesMatch: %s, aSeriesResult: %s' % (isSeriesMatch, aSeriesResult))
+    if not isSeriesMatch:
+        if not sGui: oGui.showInfo()
+        return
+
+    total = len(aSeriesResult)
+    for sUrl, sName in aSeriesResult:
         oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showSeasons')
-        oGuiElement.setThumbnail(URL_MAIN + sThumbnail)
         oGuiElement.setMediaType('tvshow')
-        params.setParam('sUrl', URL_MAIN + sUrl)
+        params.setParam('sUrl', URL_MAIN + '/' + sUrl)
         params.setParam('TVShowTitle', sName)
         oGui.addFolder(oGuiElement, params, True, total)
     if not sGui:
-        pattern = 'pagination">.*?<a href="([^"]+)">&gt;</a>.*?</a></div>'
-        isMatchNextPage, sNextUrl = cParser.parseSingleResult(sHtmlContent, pattern)
-        if isMatchNextPage:
-            params.setParam('sUrl', sNextUrl)
-            oGui.addNextPage(SITE_IDENTIFIER, 'showEntries', params)
         oGui.setView('tvshows')
         oGui.setEndOfDirectory()
 
