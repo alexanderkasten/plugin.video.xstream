@@ -352,7 +352,7 @@ def get_twoCaptcha_answer_sync(captcha_id: str):
                 logger.error(error_msg)
                 raise Exception(error_msg)
 
-            time.sleep(5)
+            time.sleep(2)
 
         except requests.RequestException as e:
             error_msg = f"HTTP error while polling captcha: {str(e)}"
