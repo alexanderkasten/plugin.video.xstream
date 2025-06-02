@@ -47,8 +47,7 @@ URL_NEW_EPISODES = URL_MAIN + '/'
 URL_POPULAR = URL_MAIN + '/vorgeschlagene-serien'
 URL_ALPHABET = URL_MAIN + '/serie-alphabet'
 URL_GENRES = URL_MAIN + '/serie-genre'
-    # username = cConfig().getSetting('2captcha.user')# Username
-    # password = cConfig().getSetting('2captcha.pass')# Password
+
 def load(): # Menu structure of the site plugin
     logger.info('Load %s' % SITE_NAME)
     params = ParameterHandler()
@@ -361,12 +360,11 @@ def get_twoCaptcha_answer_sync(captcha_id: str):
 
 def getHosterUrl(hUrl):
     if type(hUrl) == str: hUrl = eval(hUrl)
-    username = cConfig().getSetting('2captcha.user')
     password = cConfig().getSetting('2captcha.pass')
     twoCaptchaApiIn = 'https://2captcha.com/in.php'
 
     logger.info('BurningSeries: getHosterUrl: hUrl: %s' % hUrl)
-    logger.info('BurningSeries: getHosterUrl: username: %s, password: %s' % (username, password))
+    logger.info('BurningSeries: getHosterUrl: password: %s' % (password))
 
     Request = cRequestHandler(URL_MAIN + '/' + hUrl[0], caching=False)
     Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
