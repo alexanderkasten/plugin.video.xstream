@@ -313,7 +313,7 @@ def showHosters():
     # isMatchLang, aResult2 = cParser.parseSingleResult(sHtmlContent, languagesPattern)
     isMatch, aResult = cParser.parse(rHosterTabs, hosterPattern)
     sLang = '(DE)'
-    sQuality = '480'
+    sQuality = '720'
     if isMatch:
         for sUrl, sName in aResult:
             if cConfig().isBlockedHoster(sName)[0]: continue # Hoster aus settings.xml oder deaktivierten Resolver ausschließen
@@ -364,15 +364,10 @@ def getHosterUrl(hUrl):
     username = cConfig().getSetting('2captcha.user')
     password = cConfig().getSetting('2captcha.pass')
     twoCaptchaApiIn = 'https://2captcha.com/in.php'
-    twoCaptchaApiRes = 'https://2captcha.com/res.php'
+
     logger.info('BurningSeries: getHosterUrl: hUrl: %s' % hUrl)
     logger.info('BurningSeries: getHosterUrl: username: %s, password: %s' % (username, password))
-    # Handler = cRequestHandler(URL_LOGIN, caching=False)
-    # Handler.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    # Handler.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
-    # Handler.addParameters('email', username)
-    # Handler.addParameters('password', password)
-    # Handler.request()
+
     Request = cRequestHandler(URL_MAIN + '/' + hUrl[0], caching=False)
     Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
     Request.addHeaderEntry('Upgrade-Insecure-Requests', '1')
@@ -405,7 +400,6 @@ def getHosterUrl(hUrl):
 
     logger.info('BurningSeries: getHosterUrl: sUrl: %s' % sUrl)
 
-    # Captcha-Request senden
     response = requests.post(
         twoCaptchaApiIn,
         data=json.dumps(params),
@@ -419,7 +413,6 @@ def getHosterUrl(hUrl):
     captcha_id = json_response['request']
     logger.info(f'Captcha request submitted with ID: {captcha_id}')
 
-    # Warten auf die Lösung
     google_captcha_token = get_twoCaptcha_answer_sync(captcha_id)
     lIDMatch, lID = cParser.parseSingleResult(htmlContent, r'data-lid="([^"]+)"')
     securityTokenMatch, securityToken = cParser.parseSingleResult(htmlContent, r'security_token" content="([^"]+)"')
@@ -431,53 +424,91 @@ def getHosterUrl(hUrl):
         # return None?
         return [{'streamUrl': '', 'resolved': False}]
 
-    # const bsToApiResponse = await $.ajax({
-    #   url: 'ajax/embed.php',
-    #   type: 'POST',
-    #   dataType: 'JSON',
-    #   data: { LID: videoId, ticket: gTicket },
-    # });
+    if not securityTokenMatch:
+        logger.error('BurningSeries: getHosterUrl: No securityToken found in HTML content.')
+        # return None?
+        return [{'streamUrl': '', 'resolved': False}]
 
-    ResolveRequest = cRequestHandler(URL_MAIN + '/ajax/embed.php', caching=False, ignoreErrors=False, compression=True, jspost=True)
-    ResolveRequest.addParameters('LID', lID)
-    ResolveRequest.addParameters('ticket', google_captcha_token)
-    ResolveRequest.addParameters('token', securityToken)
-    ResolveRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-    ResolveRequest.addHeaderEntry('Referer', sUrl)
-    ResolveRequest.addHeaderEntry('Origin', URL_MAIN)
-    ResolveRequest.addHeaderEntry('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-    ResolveRequest.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    ResolveRequest.addHeaderEntry('Accept', 'application/json, text/javascript, */*; q=0.01')
-    ResolveRequest.addHeaderEntry('Accept-Encoding', 'gzip, deflate, br, zstd')
-    ResolveRequest.addHeaderEntry('Accept-Language', 'de-DE,de;q=0.9')
+
     responseHeader = Request.getResponseHeader()
-    ResolveRequest.addHeaderEntry('Cookie', responseHeader.get('Set-Cookie'))
+    setCookieHeaders = responseHeader.get_all('Set-Cookie') if hasattr(responseHeader, 'get_all') else responseHeader.getheaders('Set-Cookie')
 
-# curl 'https://bs.to/ajax/embed.php' \
-#   -H 'accept: application/json, text/javascript, */*; q=0.01' \
-#   -H 'accept-language: de-DE,de;q=0.9' \
-#   -H 'content-type: application/x-www-form-urlencoded; charset=UTF-8' \
-#   -b '__ddg1_=EQeRRynEzoaICn3Kn7Hz; __bsduid=57vfnml8m8ahtld3dplmcqcicq; seriesorder=genre; __ddg8_=NXDoxfD5eDFEjVKN; __ddg10_=1748104735; __ddg9_=193.32.248.174' \
-#   -H 'origin: https://bs.to' \
-#   -H 'priority: u=1, i' \
-#   -H 'referer: https://bs.to/serie/Bandidos-2024/1/2-Der-heilige-Ort/de/VOE' \
-#   -H 'sec-ch-ua: "Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"' \
-#   -H 'sec-ch-ua-mobile: ?0' \
-#   -H 'sec-ch-ua-platform: "macOS"' \
-#   -H 'sec-fetch-dest: empty' \
-#   -H 'sec-fetch-mode: cors' \
-#   -H 'sec-fetch-site: same-origin' \
-#   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36' \
-#   -H 'x-requested-with: XMLHttpRequest' \
-#   --data-raw 'token=f7faebfe9abaab22308938a0&LID=8232435&ticket=03AFcWeA73wH2zKXObM5Rp6cQpbFTgujoTsUsFRFjf8-hdi0VEBt2AVe6z8JKcdUSIpTXgaUAJxs281qxno_pWID9BoViy-mNvNdMjM_D92pGNsixtAD_bxjMpZi0IfqRYeDQK9e1QUQIDBVTr6bV5zFZZryefXGsTX4KK0QFDn-iNDTSHkCOzi4CPwS2lVfQQRKymF1Rt5cZqnPTfEJqTUBx8XZyGiO3H1fbz0ARfQfD68nfBxqZ3GU-kI-SXL6FRqWt0I34EbzjU4O8DXnnTVEgjBjdZ5fvnQZYkowbjP69khyeANP8Lfx8zC62Bsh9CdpoOIhU3eZ7YMUUTf4Z7_L1X8abAvcwpx25b9SkAI4fv3wR9vWrP_-9vF0Wp2m8pD-17ibVkBAhnOX6qfPAlw4JxV8gnjVGMu-bf_gKxck6uPb2SsNF158C3IZZ-zBu5Qxyam4PXyFi8yZSUqyrncoZRLvPz-myYbtXXEmXQ-9mpqNitcHt77ZXWAnkECvvQTUx0DhS4xrr7d2P9sf_VLmn6IEiCKXJ8iRDvK1-3WE9QKZjh5kzJLk6Cme11TqtInL6bIg9PhWR90uPe0TwJdbK7cLMInDS6j6SK5rWuvYkWtAefCRGDBu0XskFzNuBoLE1Nmmur_MTo2GjkHxSjZogxrP2ruZ4rlOK3qgI1c_9cYFYhfYu6pcMd7-NzwZZAo_7wP3dpuyca0uHoDdfLBiCr66_9HQm2WyZENbjyyt_-Zkxd7ONClUS5y3vzoZzJ_op60e7HMiVdXBR_Fj7JvsEZT96zQextxT_lx9jfSU_Lv2ajeCb9qT8xfuK_BN1QPwRArPONb0yUeJRXdEYdhEyv3qvNUOQ6cFxSBcNiIk7UooMV42N9_d__cgy_CSQrxEtbfpgYyeItiQ8xx8sPRNJYh8PlFVGrs3AuRa17Bqqw_Lhyjl3UP6o8zEKW0YkbDXNh8p64aLBIYT-6t3StT3m0y8UZu1704rWHYyLweD1hAorydPtaNWsoF2pzPbMlRj1PDaZsMJlj9FaYI5cXJAmqAijR2zYAeg'
-    result = ResolveRequest.request()
-    parsedJson = json.loads(result)  # JSON-Response parsen
+    cookie_string_parts = []
+
+    for header in setCookieHeaders:
+        name_value = header.split(";", 1)[0].strip() 
+        if "=" in name_value:
+            cookie_string_parts.append(name_value)
+
+    cookie_header = "; ".join(cookie_string_parts)
+
+    curl_cmd = [
+        "curl",
+        f"'{URL_MAIN}/ajax/embed.php'",
+        "-X", "POST",
+        "-H", "'accept: application/json, text/javascript, */*; q=0.01'",
+        "-H", "'accept-language: de-DE,de;q=0.9'",
+        "-H", "'content-type: application/x-www-form-urlencoded; charset=UTF-8'",
+        f"-b '{cookie_header}'",
+        f"-H 'origin: {URL_MAIN}'",
+        "-H 'priority: u=1, i'",
+        f"-H 'referer: {sUrl}'",
+        "-H 'sec-ch-ua: \"Chromium\";v=\"134\", \"Not:A-Brand\";v=\"24\", \"Google Chrome\";v=\"134\"'",
+        "-H 'sec-ch-ua-mobile: ?0'",
+        "-H 'sec-ch-ua-platform: \"macOS\"'",
+        "-H 'sec-fetch-dest: empty'",
+        "-H 'sec-fetch-mode: cors'",
+        "-H 'sec-fetch-site: same-origin'",
+        "-H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'",
+        "-H 'x-requested-with: XMLHttpRequest'",
+        f"--data-raw 'token={securityToken}&LID={lID}&ticket={google_captcha_token}'"
+    ]
+    logger.info("BurningSeries: getHosterUrl: curl command for debugging: %s" % " ".join(curl_cmd))
+    logger.info(" ".join(curl_cmd))
+
+
+    headers = {
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'accept-language': 'de-DE,de;q=0.9',
+        'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'origin': URL_MAIN,
+        'priority': 'u=1, i',
+        'referer': sUrl,
+        'sec-ch-ua': '"Chromium";v="134", "Not:A-Brand";v="24", "Google Chrome";v="134"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest'
+    }
+
+    cookies = {}
+    for part in cookie_string_parts:
+        if "=" in part:
+            name, value = part.split("=", 1)
+            cookies[name.strip()] = value.strip()
+
+
+    data = {
+        'token': securityToken,
+        'LID': lID,
+        'ticket': google_captcha_token
+    }
+
+    response = requests.post(f'{URL_MAIN}/ajax/embed.php', headers=headers, cookies=cookies, data=data)
+
+
+    logger.info(f"Status Code: {response.status_code}")
+    logger.info(f"Response Headers: {response.headers}")
+    logger.info(f"Response Body: {response.text}")
+    parsedJson = json.loads(response.text) 
     if not parsedJson:
         logger.error('BurningSeries: getHosterUrl: No result from resolve request.')
         # return None?
         return [{'streamUrl': '', 'resolved': False}]
 
-    logger.info('BurningSeries: getHosterUrl: Resolve result: %s' % result)
     return [{'streamUrl': parsedJson['link'], 'resolved': False}]
 
 
