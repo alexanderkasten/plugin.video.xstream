@@ -98,6 +98,9 @@ def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
     sHtmlContent = oRequest.request()
+
+    logger.info('BurningSeries: showAllSeries: entryUrl request done: %s, sSearchText: %s' % (entryUrl, sSearchText))
+
     # pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>'
     # works
     # pattern = '<a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"'
@@ -518,7 +521,7 @@ def showSearch():
 
 
 def _search(oGui, sSearchText):
-    SSsearch(oGui, sSearchText)
+    showAllSeries(False, False, sSearchText)
 
 
 def SSsearch(sGui=False, sSearchText=False):
@@ -556,10 +559,10 @@ def SSsearch(sGui=False, sSearchText=False):
         else:
             #get images thumb / descr pro call. (optional)
             try:
-                sThumbnail, sDescription = getMetaInfo(link, title)
+                # sThumbnail, sDescription = getMetaInfo(link, title)
                 oGuiElement = cGuiElement(title, SITE_IDENTIFIER, 'showSeasons')
-                oGuiElement.setThumbnail(URL_MAIN + sThumbnail)
-                oGuiElement.setDescription(sDescription)
+                # oGuiElement.setThumbnail(URL_MAIN + sThumbnail)
+                # oGuiElement.setDescription(sDescription)
                 oGuiElement.setTVShowTitle(title)
                 oGuiElement.setMediaType('tvshow')
                 params.setParam('sUrl', URL_MAIN + link)
@@ -578,25 +581,25 @@ def SSsearch(sGui=False, sSearchText=False):
             oGui.setView('tvshows')
 
 
-def getMetaInfo(link, title):   # Setzen von Metadata in Suche:
-    oGui = cGui()
-    oRequest = cRequestHandler(URL_MAIN + link, caching=False)
-    oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-    oRequest.addHeaderEntry('Referer', REFERER + '/serien')
-    oRequest.addHeaderEntry('Origin', REFERER)
+# def getMetaInfo(link, title):   # Setzen von Metadata in Suche:
+#     oGui = cGui()
+#     oRequest = cRequestHandler(URL_MAIN + link, caching=False)
+#     oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
+#     oRequest.addHeaderEntry('Referer', REFERER + '/serien')
+#     oRequest.addHeaderEntry('Origin', REFERER)
 
-    #GET CONTENT OF HTML
-    sHtmlContent = oRequest.request()
-    if not sHtmlContent:
-        return
+#     #GET CONTENT OF HTML
+#     sHtmlContent = oRequest.request()
+#     if not sHtmlContent:
+#         return
 
-    pattern = 'seriesCoverBox">.*?data-src="([^"]+).*?data-full-description="([^"]+)"' #img , descr
+#     pattern = 'seriesCoverBox">.*?data-src="([^"]+).*?data-full-description="([^"]+)"' #img , descr
 
-    oParser = cParser()
-    aResult = oParser.parse(sHtmlContent, pattern)
+#     oParser = cParser()
+#     aResult = oParser.parse(sHtmlContent, pattern)
 
-    if not aResult[0]:
-        return
+#     if not aResult[0]:
+#         return
 
-    for sImg, sDescr in aResult[1]:
-        return sImg, sDescr
+#     for sImg, sDescr in aResult[1]:
+#         return sImg, sDescr
