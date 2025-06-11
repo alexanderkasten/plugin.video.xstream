@@ -559,85 +559,8 @@ def showSearch():
 
 
 def _search(oGui, sSearchText):
-    showAllSeries(False, False, sSearchText)
+    showAllSeries(URL_SERIES, oGui, sSearchText)
 
 
 def SSsearch(sGui=False, sSearchText=False):
-    oGui = sGui if sGui else cGui()
-    params = ParameterHandler()
-    params.getValue('sSearchText')
-
-    oRequest = cRequestHandler(URL_SERIES, caching=True, ignoreErrors=(sGui is not False))
-    oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-    oRequest.addHeaderEntry('Referer', REFERER  + '/serien')
-    oRequest.addHeaderEntry('Origin', REFERER)
-    oRequest.addHeaderEntry('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8')
-    oRequest.addHeaderEntry('Upgrade-Insecure-Requests', '1')
-    if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
-        oRequest.cacheTime = 60 * 60 * 24  # HTML Cache Zeit 1 Tag
-    sHtmlContent = oRequest.request()
-    if not sHtmlContent:
-            return
-
-    sst = sSearchText.lower()
-
-    pattern = '<li><a data.+?href="([^"]+)".+?">(.*?)\<\/a><\/l' #link - title
-
-    oParser = cParser()
-    aResult = oParser.parse(sHtmlContent, pattern)
-
-    if not aResult[0]:
-        oGui.showInfo()
-        return
-
-    total = len(aResult[1])
-    for link, title in aResult[1]:
-        if not sst in title.lower():
-            continue
-        else:
-            #get images thumb / descr pro call. (optional)
-            try:
-                # sThumbnail, sDescription = getMetaInfo(link, title)
-                oGuiElement = cGuiElement(title, SITE_IDENTIFIER, 'showSeasons')
-                # oGuiElement.setThumbnail(URL_MAIN + sThumbnail)
-                # oGuiElement.setDescription(sDescription)
-                oGuiElement.setTVShowTitle(title)
-                oGuiElement.setMediaType('tvshow')
-                params.setParam('sUrl', URL_MAIN + link)
-                params.setParam('sName', title)
-                oGui.addFolder(oGuiElement, params, True, total)
-            except Exception:
-                oGuiElement = cGuiElement(title, SITE_IDENTIFIER, 'showSeasons')
-                oGuiElement.setTVShowTitle(title)
-                oGuiElement.setMediaType('tvshow')
-                params.setParam('sUrl', URL_MAIN + link)
-                params.setParam('sName', title)
-                oGui.addFolder(oGuiElement, params, True, total)
-
-
-        if not sGui:
-            oGui.setView('tvshows')
-
-
-# def getMetaInfo(link, title):   # Setzen von Metadata in Suche:
-#     oGui = cGui()
-#     oRequest = cRequestHandler(URL_MAIN + link, caching=False)
-#     oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
-#     oRequest.addHeaderEntry('Referer', REFERER + '/serien')
-#     oRequest.addHeaderEntry('Origin', REFERER)
-
-#     #GET CONTENT OF HTML
-#     sHtmlContent = oRequest.request()
-#     if not sHtmlContent:
-#         return
-
-#     pattern = 'seriesCoverBox">.*?data-src="([^"]+).*?data-full-description="([^"]+)"' #img , descr
-
-#     oParser = cParser()
-#     aResult = oParser.parse(sHtmlContent, pattern)
-
-#     if not aResult[0]:
-#         return
-
-#     for sImg, sDescr in aResult[1]:
-#         return sImg, sDescr
+    showAllSeries(URL_SERIES, sGui, sSearchText)
