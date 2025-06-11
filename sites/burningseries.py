@@ -57,8 +57,8 @@ def load(): # Menu structure of the site plugin
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30514), SITE_IDENTIFIER, 'showNewSeries'), params)  # New Series
     params.setParam('sUrl', URL_NEW_EPISODES)
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30516), SITE_IDENTIFIER, 'showNewEpisodes'), params)  # New Episodes
-    params.setParam('sUrl', URL_POPULAR)
-    cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30519), SITE_IDENTIFIER, 'showEntries'), params)  # Popular Series
+    # params.setParam('sUrl', URL_POPULAR)
+    # cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30519), SITE_IDENTIFIER, 'showEntries'), params)  # Popular Series
     params.setParam('sUrl', URL_ALPHABET)
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30517), SITE_IDENTIFIER, 'showValue'), params)    # From A-Z
     params.setParam('sUrl', URL_GENRES)
@@ -66,7 +66,6 @@ def load(): # Menu structure of the site plugin
     params.setParam('sUrl', URL_SERIES)
     cGui().addFolder(cGuiElement(cConfig().getLocalizedString(30520), SITE_IDENTIFIER, 'showSearch'), params)   # Search
     cGui().setEndOfDirectory()
-
 
 def showValue():
     params = ParameterHandler()
@@ -76,18 +75,57 @@ def showValue():
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
     sHtmlContent = oRequest.request()
-    isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, '<ul[^>]*class="%s"[^>]*>(.*?)<\\/ul>' % params.getValue('sCont'))
-    if isMatch:
-        isMatch, aResult = cParser.parse(sContainer, '<li>\s*<a[^>]*href="([^"]*)"[^>]*>(.*?)<\\/a>\s*<\\/li>')
+    # isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, '<ul[^>]*class="%s"[^>]*>(.*?)<\\/ul>' % params.getValue('sCont'))
+    pattern = r'<div class="genre">\s*<span><strong>([^<]+)</strong></span>'
+    isMatch, aGenre = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
         cGui().showInfo()
         return
 
-    for sUrl, sName in aResult:
-        sUrl = sUrl if sUrl.startswith('http') else URL_MAIN + sUrl
-        params.setParam('sUrl', sUrl)
+    for sName in aGenre:
+        params.setParam('sGenre', sName.strip())
         cGui().addFolder(cGuiElement(sName, SITE_IDENTIFIER, 'showEntries'), params)
     cGui().setEndOfDirectory()
+
+
+def showEntries(entryUrl=False, sGui=False, sSearchText=False):
+    oGui = sGui if sGui else cGui()
+    params = ParameterHandler()
+    if not entryUrl: entryUrl = params.getValue('sUrl')
+    sGenre = params.getValue('sGenre')
+    oRequest = cRequestHandler(entryUrl, ignoreErrors=(sGui is not False))
+    if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
+        oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
+    sHtmlContent = oRequest.request()
+
+    logger.info('BurningSeries: showEntries: entryUrl request done: %s, sSearchText: %s' % (entryUrl, sSearchText))
+
+
+    # genre_div_pattern = '<div class="genre">\s*<span><strong>\s*%s\s*</strong></span>\s*<ul>(.*?)</ul>\s*</div>' % sGenre
+    # escaped_genre = re.escape(sGenre)
+    genre_div_pattern = rf'<div class="genre">\s*<span><strong>{sGenre}</strong></span>\s*<ul>(.*?)</ul>'
+    isMatchGenre, aResultGenre = cParser.parseSingleResult(sHtmlContent, genre_div_pattern)
+    if not isMatchGenre:
+        if not sGui: oGui.showInfo()
+        return
+
+    pattern = r'<a[^>]+href="(serie/[^"]+)"[^>]+title="([^"]+)"'
+    isMatch, aResult = cParser.parse(aResultGenre, pattern)
+    if not isMatch:
+        if not sGui: oGui.showInfo()
+        return
+    total = len(aResult)
+    for sUrl, sName in aResult:
+        if sSearchText and not cParser().search(sSearchText, sName):
+            continue
+        oGuiElement = cGuiElement(sName, SITE_IDENTIFIER, 'showSeasons')
+        oGuiElement.setMediaType('tvshow')
+        params.setParam('sUrl', URL_MAIN + '/' + sUrl)
+        params.setParam('TVShowTitle', sName)
+        oGui.addFolder(oGuiElement, params, True, total)
+    if not sGui:
+        oGui.setView('tvshows')
+        oGui.setEndOfDirectory()
 
 
 def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
