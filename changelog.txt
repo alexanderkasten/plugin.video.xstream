@@ -1,5 +1,8 @@
 [B]Version: 4.2.2.6[/B]
 
+13.06.2025
+
+- [BurningSeries] Neuer Scraper (nur mit 2Captcha Account)
 
 09.06.2025
 
