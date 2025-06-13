@@ -2,15 +2,12 @@
 # Python 3
 
 # Always pay attention to the translations in the menu!
-# Sprachauswahl für Hoster enthalten.
-# Ajax Suchfunktion enthalten.
+
 # HTML LangzeitCache hinzugefügt
 # showValue:     24 Stunden
 # showAllSeries: 24 Stunden
 # showEpisodes:   4 Stunden
 # SSsearch:      24 Stunden
-
-# 2022-12-06 Heptamer - Suchfunktion überarbeitet
 
 import xbmcgui
 import xbmcaddon
@@ -70,12 +67,12 @@ def load(): # Menu structure of the site plugin
 def showValue():
     params = ParameterHandler()
     sUrl = params.getValue('sUrl')
-    #sHtmlContent = cRequestHandler(sUrl).request()
+
     oRequest = cRequestHandler(sUrl)
     if cConfig().getSetting('global_search_' + SITE_IDENTIFIER) == 'true':
         oRequest.cacheTime = 60 * 60 * 24 # HTML Cache Zeit 1 Tag
     sHtmlContent = oRequest.request()
-    # isMatch, sContainer = cParser.parseSingleResult(sHtmlContent, '<ul[^>]*class="%s"[^>]*>(.*?)<\\/ul>' % params.getValue('sCont'))
+
     pattern = r'<div class="genre">\s*<span><strong>([^<]+)</strong></span>'
     isMatch, aGenre = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
@@ -100,9 +97,6 @@ def showEntries(entryUrl=False, sGui=False, sSearchText=False):
 
     logger.info('BurningSeries: showEntries: entryUrl request done: %s, sSearchText: %s' % (entryUrl, sSearchText))
 
-
-    # genre_div_pattern = '<div class="genre">\s*<span><strong>\s*%s\s*</strong></span>\s*<ul>(.*?)</ul>\s*</div>' % sGenre
-    # escaped_genre = re.escape(sGenre)
     genre_div_pattern = rf'<div class="genre">\s*<span><strong>{sGenre}</strong></span>\s*<ul>(.*?)</ul>'
     isMatchGenre, aResultGenre = cParser.parseSingleResult(sHtmlContent, genre_div_pattern)
     if not isMatchGenre:
@@ -139,16 +133,12 @@ def showAllSeries(entryUrl=False, sGui=False, sSearchText=False):
 
     logger.info('BurningSeries: showAllSeries: entryUrl request done: %s, sSearchText: %s' % (entryUrl, sSearchText))
 
-    # pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>'
-    # works
-    # pattern = '<a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"'
-        # Optimiertes Pattern: weniger Backtracking, keine unnötigen Gruppen, kein .* am Ende
+    # pattern = '<a[^>]*href="(serie\\/[^"]*)"\\stitle="(.*?)"[^>]*>.*</a>' # Original Pattern funktioniert
+    # Optimiertes Pattern: weniger Backtracking, keine unnötigen Gruppen, kein .* am Ende
     # Ursprünglich: pattern = '<a[^>]*href="(serie\/[^"]*)"[^>]*title="([^"]*)"'
     # Optimiert:
     pattern = r'<a[^>]+href="(serie/[^"]+)"[^>]+title="([^"]+)"'
-    # pattern = <a[^>]*href="(serie\\/[^"]*)"[^>]*title="([^"]*)"
-    # pattern = <a[^>]*href="(serie/[^"]*)"[^>]*title="([^"]*)"
-    # pattern = '<a[^>]*href="(\\/serie\\/[^"]*)"[^>]*>(.*?)</a>'
+
     isMatch, aResult = cParser.parse(sHtmlContent, pattern)
     if not isMatch:
         if not sGui: oGui.showInfo()
@@ -302,9 +292,7 @@ def showEpisodes():
     isMatch, sEpisodes = cParser.parse(sHtmlContent, pattern)
 
     logger.info('BurningSeries: showEpisodes: isMatch: %s, sEpisodes: %s' % (isMatch, sEpisodes))
-    # if isMatch:
-    #     pattern = '<tr[^>]*data-episode-season-id="(\d+).*?<a href="([^"]+).*?(?:<strong>(.*?)</strong>.*?)?(?:<span>(.*?)</span>.*?)?<'
-    #     isMatch, aResult = cParser.parse(sContainer, pattern)
+
     if not isMatch:
         logger.error('BurningSeries: showEpisodes: No episodes found for URL: %s' % sUrl)
         cGui().showInfo()
@@ -360,10 +348,6 @@ def showHosters():
             # sLanguage = cConfig().getSetting('prefLanguage')
             sName = sName.strip()
 
-                # Ab hier wird der sName mit abgefragt z.B:
-                # aus dem Log [burningseries]: ['/redirect/12286260', 'VOE']
-                # hier ist die sUrl = '/redirect/12286260' und der sName 'VOE'
-                # hoster.py 194
             hoster = {'link': [sUrl, sName], 'name': sName, 'displayedName': '%s [I]%s [%sp][/I]' % (sName, sLang, sQuality), 'quality': sQuality, 'languageCode': sLang} # Language Code für hoster.py Sprache Prio
             hosters.append(hoster)
         if hosters:
@@ -411,15 +395,11 @@ def getHosterUrl(hUrl):
     Request.addHeaderEntry('Referer', ParameterHandler().getValue('entryUrl'))
     Request.addHeaderEntry('Upgrade-Insecure-Requests', '1')
     htmlContent = Request.request()
+
     logger.info('BurningSeries: getHosterUrl: HTML content received. %s' % (htmlContent))
-    # not working
-    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']*)'\s*$$"
+
     sitekey_regex = r"series\.init\s*\(\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*\)\s*;"
-    # not working
-    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*$$"
-    # sitekey_regex = r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+?)'\s*$$"
-    # r"series\.init\s*$$\s*\d+\s*,\s*\d+\s*,\s*'([^']+)'\s*$$"
-    # sitekey_regex = r"series.init\s\(\d*,\s\d*,\s'(.*)'\)"
+
     isMatch, sitekey = cParser.parseSingleResult(htmlContent, sitekey_regex)
     if not isMatch:
         logger.error('BurningSeries: getHosterUrl: No sitekey found in HTML content.')
@@ -438,7 +418,7 @@ def getHosterUrl(hUrl):
     }
 
     logger.info('BurningSeries: getHosterUrl: sUrl: %s' % sUrl)
-
+    # POST method funktioniert nicht mit cRequestHandler??
     response = requests.post(
         twoCaptchaApiIn,
         data=json.dumps(params),
@@ -475,36 +455,9 @@ def getHosterUrl(hUrl):
     cookie_string_parts = []
 
     for header in setCookieHeaders:
-        name_value = header.split(";", 1)[0].strip() 
+        name_value = header.split(";", 1)[0].strip()
         if "=" in name_value:
             cookie_string_parts.append(name_value)
-
-    cookie_header = "; ".join(cookie_string_parts)
-
-    curl_cmd = [
-        "curl",
-        f"'{URL_MAIN}/ajax/embed.php'",
-        "-X", "POST",
-        "-H", "'accept: application/json, text/javascript, */*; q=0.01'",
-        "-H", "'accept-language: de-DE,de;q=0.9'",
-        "-H", "'content-type: application/x-www-form-urlencoded; charset=UTF-8'",
-        f"-b '{cookie_header}'",
-        f"-H 'origin: {URL_MAIN}'",
-        "-H 'priority: u=1, i'",
-        f"-H 'referer: {sUrl}'",
-        "-H 'sec-ch-ua: \"Chromium\";v=\"134\", \"Not:A-Brand\";v=\"24\", \"Google Chrome\";v=\"134\"'",
-        "-H 'sec-ch-ua-mobile: ?0'",
-        "-H 'sec-ch-ua-platform: \"macOS\"'",
-        "-H 'sec-fetch-dest: empty'",
-        "-H 'sec-fetch-mode: cors'",
-        "-H 'sec-fetch-site: same-origin'",
-        "-H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36'",
-        "-H 'x-requested-with: XMLHttpRequest'",
-        f"--data-raw 'token={securityToken}&LID={lID}&ticket={google_captcha_token}'"
-    ]
-    logger.info("BurningSeries: getHosterUrl: curl command for debugging: %s" % " ".join(curl_cmd))
-    logger.info(" ".join(curl_cmd))
-
 
     headers = {
         'accept': 'application/json, text/javascript, */*; q=0.01',
@@ -529,15 +482,14 @@ def getHosterUrl(hUrl):
             name, value = part.split("=", 1)
             cookies[name.strip()] = value.strip()
 
-
     data = {
         'token': securityToken,
         'LID': lID,
         'ticket': google_captcha_token
     }
 
+    # POST method funktioniert nicht mit cRequestHandler??
     response = requests.post(f'{URL_MAIN}/ajax/embed.php', headers=headers, cookies=cookies, data=data)
-
 
     logger.info(f"Status Code: {response.status_code}")
     logger.info(f"Response Headers: {response.headers}")
